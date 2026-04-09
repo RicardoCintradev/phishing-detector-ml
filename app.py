@@ -9,7 +9,12 @@ import joblib
 import unicodedata
 app = FastAPI()
 
-model = joblib.load("model_phishing.pkl")
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(BASE_DIR, "model_fishing.pkl")
+
+model = joblib.load(model_path)
 
 def detect_scripts(domain):
     scripts = set()
@@ -39,7 +44,7 @@ def extract_features(domain):
 
 @app.get("/")
 def home():
-    return {"message": "API rodando 🚀"}
+    return {"message": "API rodando "}
 
 @app.get("/predict")
 def predict(domain: str):
