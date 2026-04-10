@@ -5,53 +5,89 @@ Description: Machine Learning system to detect phishing domains using Unicode an
 """
 
 from fastapi import FastAPI
+from pydantic import BaseModel
 import joblib
-import unicodedata
-app = FastAPI()
-
 import os
+import unicodedata
+
+# =========================
+# INICIALIZAÇÃO
+# =========================
+
+app = FastAPI()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(BASE_DIR, "model_phishing.pkl")
 
 model = joblib.load(model_path)
 
-def detect_scripts(domain):
-    scripts = set()
-    for char in domain:
-        try:
-            name = unicodedata.name(char)
-            if 'CYRILLIC' in name: scripts.add('Cyrillic')
-            elif 'GREEK' in name: scripts.add('Greek')
-            elif 'LATIN' in name: scripts.add('Latin')
-        except:
-            pass
-    return len(scripts)
+# =========================
+# MODELO DE ENTRADA
+# =========================
 
-def check_keywords(domain):
-    keywords = ['login', 'verify', 'secure', 'bank', 'update', 'support', 'account']
-    return sum(1 for k in keywords if k in domain.lower())
+class URLRequest(BaseModel):
+    url: str
 
-def extract_features(domain):
-    return [[
-        len(domain),
-        sum(c.isdigit() for c in domain),
-        domain.count('-'),
-        sum(ord(c) >= 128 for c in domain),
-        detect_scripts(domain),
-        check_keywords(domain)
-    ]]
+# =========================
+# FUNÇÕES DE EXPLICAÇÃO
+# =========================
+
+def detectar_alfabetos(texto):
+    alfabetos = set()
+
+    for char in texto:
+        nome = unicodedata.name(char, "")
+        
+        if "CYRILLIC" in nome:
+            alfabetos.add("cirilico")
+        elif "GREEK" in nome:
+            alfabetos.add("grego")
+        elif "LATIN" in nome:
+            alfabetos.add("latino")
+
+    return alfabetos
+
+
+def gerar_explicacao(url):
+    explicacoes = []
+    
+    alfabetos = detectar_alfabetos(url)
+
+    if len(alfabetos) > 1:
+        explicacoes.append(f"Mistura de alfabetos: {', '.join(alfabetos)}")
+
+    if "xn--" in url:
+        explicacoes.append("Uso de Punycode (possível spoofing)")
+
+    if any(ord(c) > 127 for c in url):
+        explicacoes.append("Presença de caracteres Unicode incomuns")
+
+    return explicacoes
+
+# =========================
+# ENDPOINT PRINCIPAL
+# =========================
+
+@app.post("/predict")
+def predict(data: URLRequest):
+    url = data.url
+    
+    pred = model.predict([url])[0]
+    prob = model.predict_proba([url])[0].max()
+
+    explicacoes = gerar_explicacao(url)
+
+    return {
+        "url": url,
+        "resultado": "phishing" if pred == 1 else "legitimo",
+        "probabilidade": float(prob),
+        "explicacao": explicacoes
+    }
+
+# =========================
+# ROTA TESTE
+# =========================
 
 @app.get("/")
 def home():
-    return {"message": "API rodando "}
-
-@app.get("/predict")
-def predict(domain: str):
-    features = extract_features(domain)
-    prediction = model.predict(features)[0]
-
-    return {
-        "domain": domain,
-        "resultado": "MALICIOSO" if prediction == 1 else "LEGÍTIMO"
-    }
+    return {"mensagem": "API de detecção de phishing ativa "}
