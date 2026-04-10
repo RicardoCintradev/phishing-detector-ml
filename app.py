@@ -4,11 +4,13 @@ Author: Ricardo França Cintra
 Description: Machine Learning system to detect phishing domains using Unicode and structural analysis.
 """
 
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import os
 import unicodedata
+import numpy as np
 
 # =========================
 # INICIALIZAÇÃO
@@ -29,51 +31,71 @@ class URLRequest(BaseModel):
     url: str
 
 # =========================
-# FUNÇÕES DE EXPLICAÇÃO
+# FEATURES (KAGGLE)
 # =========================
 
-def detectar_alfabetos(texto):
-    alfabetos = set()
+def is_non_ascii(domain):
+    return sum(ord(c) > 127 for c in domain)
 
-    for char in texto:
-        nome = unicodedata.name(char, "")
-        
-        if "CYRILLIC" in nome:
-            alfabetos.add("cirilico")
-        elif "GREEK" in nome:
-            alfabetos.add("grego")
-        elif "LATIN" in nome:
-            alfabetos.add("latino")
+def detect_scripts(domain):
+    scripts = set()
+    
+    for char in domain:
+        try:
+            name = unicodedata.name(char)
+            if "LATIN" in name:
+                scripts.add("latin")
+            elif "CYRILLIC" in name:
+                scripts.add("cyrillic")
+            elif "GREEK" in name:
+                scripts.add("greek")
+        except:
+            pass
+    
+    return len(scripts)
 
-    return alfabetos
+def has_mixed_scripts(domain):
+    return 1 if detect_scripts(domain) > 1 else 0
 
+def extract_features(domain):
+    return [
+        len(domain),
+        sum(c.isdigit() for c in domain),
+        is_non_ascii(domain),
+        domain.count('-'),
+        has_mixed_scripts(domain)
+    ]
+
+# =========================
+# EXPLICAÇÃO
+# =========================
 
 def gerar_explicacao(url):
     explicacoes = []
     
-    alfabetos = detectar_alfabetos(url)
+    if has_mixed_scripts(url):
+        explicacoes.append("Mistura de alfabetos detectada")
 
-    if len(alfabetos) > 1:
-        explicacoes.append(f"Mistura de alfabetos: {', '.join(alfabetos)}")
+    if is_non_ascii(url):
+        explicacoes.append("Caracteres Unicode incomuns")
 
     if "xn--" in url:
         explicacoes.append("Uso de Punycode (possível spoofing)")
 
-    if any(ord(c) > 127 for c in url):
-        explicacoes.append("Presença de caracteres Unicode incomuns")
-
     return explicacoes
 
 # =========================
-# ENDPOINT PRINCIPAL
+# ENDPOINT
 # =========================
 
 @app.post("/predict")
 def predict(data: URLRequest):
     url = data.url
     
-    pred = model.predict([url])[0]
-    prob = model.predict_proba([url])[0].max()
+    features = np.array(extract_features(url)).reshape(1, -1)
+
+    pred = model.predict(features)[0]
+    prob = model.predict_proba(features)[0].max()
 
     explicacoes = gerar_explicacao(url)
 
@@ -85,9 +107,9 @@ def predict(data: URLRequest):
     }
 
 # =========================
-# ROTA TESTE
+# TESTE
 # =========================
 
 @app.get("/")
 def home():
-    return {"mensagem": "API de detecção de phishing ativa "}
+    return {"mensagem": "API FINAL "}
