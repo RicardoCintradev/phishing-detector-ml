@@ -11,12 +11,22 @@ import joblib
 import os
 import unicodedata
 import numpy as np
+from fastapi.middleware.cors import CORSMiddleware
 
 # =========================
 # INICIALIZAÇÃO
 # =========================
 
 app = FastAPI()
+
+# ✅ CORS (ESSENCIAL para frontend funcionar)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 model_path = os.path.join(BASE_DIR, "model_phishing.pkl")
@@ -31,7 +41,7 @@ class URLRequest(BaseModel):
     url: str
 
 # =========================
-# FEATURES (KAGGLE)
+# FEATURES
 # =========================
 
 def is_non_ascii(domain):
@@ -67,10 +77,10 @@ def extract_features(domain):
     ]
 
 # =========================
-# EXPLICAÇÃO
+# EXPLICAÇÃO (CORRIGIDA)
 # =========================
 
-def gerar_explicacao(url):
+def gerar_explicacao(url, pred):
     explicacoes = []
     
     if has_mixed_scripts(url):
@@ -82,7 +92,11 @@ def gerar_explicacao(url):
     if "xn--" in url:
         explicacoes.append("Uso de Punycode (possível spoofing)")
 
-    return explicacoes
+    # 🔥 NOVO: explicação também para URLs legítimas
+    if pred == 0 and not explicacoes:
+        return "Nenhum padrão suspeito detectado. A URL parece legítima."
+
+    return ", ".join(explicacoes) if explicacoes else "Possível padrão suspeito identificado."
 
 # =========================
 # ENDPOINT
@@ -97,13 +111,13 @@ def predict(data: URLRequest):
     pred = model.predict(features)[0]
     prob = model.predict_proba(features)[0].max()
 
-    explicacoes = gerar_explicacao(url)
+    explicacao = gerar_explicacao(url, pred)
 
     return {
         "url": url,
         "resultado": "phishing" if pred == 1 else "legitimo",
         "probabilidade": float(prob),
-        "explicacao": explicacoes
+        "explicacao": explicacao
     }
 
 # =========================
@@ -112,4 +126,4 @@ def predict(data: URLRequest):
 
 @app.get("/")
 def home():
-    return {"mensagem": "API FINAL "}
+    return {"mensagem": "API FINAL"}
