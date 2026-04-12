@@ -1,6 +1,6 @@
-# 🔐 Phishing Detection API with Machine Learning
+#  Phishing Detection API with Machine Learning
 
-## 👨‍💻 Author
+##  Author
 Ricardo França
 
 ##  Description
