@@ -1,37 +1,61 @@
-#  Phishing Detection API with Machine Learning
+# Phishing Detection API
 
-##  Author
-Ricardo Cintra 
+API em Python e FastAPI para identificar domínios suspeitos usando Machine Learning e análise de caracteres Unicode.
 
-##  Description
-This project implements a Machine Learning-based API to detect phishing domains, including advanced homoglyph (Unicode) attacks used by cybercriminals.
+## Tecnologias
 
-## Features
-- Detection of phishing domains
-- Homoglyph (Unicode) attack detection
-- Keyword-based threat scoring
-- Machine Learning classification (Random Forest)
-- REST API built with FastAPI
-
-##  Technologies
 - Python
 - FastAPI
 - Scikit-learn
 - Pandas
 
-##  How to Run
+## Instalação e execução
 
-1. Install dependencies:
-2. Run the API:
-3. Access:
+```bash
+git clone https://github.com/RicardoCintradev/phishing-detector-ml.git
+cd phishing-detector-ml
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
+
+A documentação interativa fica disponível em:
+
+```text
 http://127.0.0.1:8000/docs
+```
 
+## Endpoint
 
-##  Example Test
+### `POST /predict`
 
-/predict?domain=gооgle.com
+Recebe uma URL em formato JSON e informa se ela parece legítima ou maliciosa.
 
+**Requisição:**
 
- This domain uses a homoglyph attack (fake Unicode characters) and should be detected as malicious.
+```json
+{
+  "url": "https://gооgle.com"
+}
+```
 
- Este domínio utiliza um ataque de homoglifos (caracteres Unicode falsos) e deve ser identificado como malicioso.
+**Exemplo com cURL:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://gооgle.com"}'
+```
+
+**Resposta:**
+
+```json
+{
+  "url": "https://gооgle.com",
+  "resultado": "phishing",
+  "probabilidade": 1.0,
+  "explicacao": "Mistura de alfabetos detectada, Caracteres Unicode incomuns"
+}
+```
+
+O domínio do exemplo usa caracteres Unicode semelhantes aos de `google.com`, caracterizando um possível ataque de homoglifos.
+
