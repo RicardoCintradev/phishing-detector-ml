@@ -1,7 +1,7 @@
 #  Phishing Detection API with Machine Learning
 
 ##  Author
-Ricardo França
+Ricardo Cintra 
 
 ##  Description
 This project implements a Machine Learning-based API to detect phishing domains, including advanced homoglyph (Unicode) attacks used by cybercriminals.
